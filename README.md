@@ -34,7 +34,7 @@ PantherBot solves this problem by providing a conversational interface that fetc
 ## Live Application Access
 You can try PantherBot live here:
 
-👉 [Click Here to Open PantherBot App](https://genai003project02.streamlit.app/)
+👉 [Click Here to Open PantherBot App](https://pantherbot.streamlit.app/)
 
 ✅ Accessible to all students and instructors for project demo and evaluation.
 
