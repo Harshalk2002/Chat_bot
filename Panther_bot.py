@@ -17,11 +17,8 @@ LOGO_PATH = Path("assets/gsu_logo.png")
 UNIVERSITY_IMAGE_PATH = Path("assets/gsu_image.jpg")
 
 # ===== INITIALIZATION =====
-openai_api_key = st.secrets["OPENAI_API_KEY"]
-serper_api_key = st.secrets["SERPER_API_KEY"]
-
-# Initialize OpenAI client
-client = OpenAI(api_key=openai_api_key)
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))  # Set it through environment variable
+SERPER_API_KEY = os.getenv("SERPER_API_KEY")
 
 # ===== UI CONFIG =====
 st.set_page_config(
@@ -150,57 +147,34 @@ def generate_university_response():
     
     return ""
 
-import pandas as pd
-
-
-def clean_number(value):
-    """Helper function to clean and format numbers consistently"""
-    if pd.isna(value) or str(value) == "Not available":
-        return "Not available"
-
-    # Convert to string and normalize
-    str_value = str(value)
-
-    # Remove all whitespace, dollar signs, and normalize dashes
-    cleaned = (str_value.replace(" ", "")
-               .replace("$", "")
-               .replace(",", "")
-               .replace("–", "-")  # en-dash to hyphen
-               .replace("—", "-")) # em-dash to hyphen
-
-    # Handle range values
-    if "-" in cleaned:
-        parts = cleaned.split("-")
-        if len(parts) == 2:
-            try:
-                # Format with commas and non-breaking spaces
-                return f"${int(parts[0]):,}–${int(parts[1]):,}"
-            except ValueError:
-                return f"${parts[0]}–{parts[1]}"  # Fallback
-
-    # Handle single values
-    try:
-        return f"${int(cleaned):,}"
-    except ValueError:
-        return str_value  # Return original if conversion fails
-
 def generate_tuition_response(program_data: dict) -> str:
-    """Generate perfectly formatted tuition information"""
-    in_state = clean_number(program_data.get("In-State Tuition Estimate", "Not available"))
-    out_state = clean_number(program_data.get("Out-of-State Tuition Estimate", "Not available"))
+    """Humanized tuition cost explanation"""
+    def format_cost(value):
+        if isinstance(value, (int, float)):
+            return f"${value:,.2f}"
+        if isinstance(value, str) and "-" in value:
+            low, high = value.split("-")
+            return f"${low.strip()}-${high.strip()}"
+        return str(value)
 
-    return f"""
-📚 **Tuition Information for {program_data['Program Name']}**
+    in_state = program_data.get("In-State Tuition Estimate", "Not available")
+    out_state = program_data.get("Out-of-State Tuition Estimate", "Not available")
+    financial_aid = program_data.get("Financial Aid Email", "rcbfinancialaid@gsu.edu")
 
-• **Georgia Residents**: {in_state} per year  
-• **Out-of-State Students**: {out_state} per year  
+    response = [
+        f"📚 **Tuition Information for {program_data['Program Name']}**",
+        "",
+        f"• **Georgia Residents**: {format_cost(in_state)} per year",
+        f"• **Out-of-State Students**: {format_cost(out_state)} per year",
+        "",
+        "💡 *Financial aid and scholarships are available*",
+        f"• Contact: {financial_aid}",
+        f"• Phone: {program_data.get('Phone Number', '404-413-2600')}",
+        "",
+        f"🔗 [View payment plans and detailed costs]({program_data.get('Program URL', 'https://robinson.gsu.edu')})"
+    ]
 
-💡 *Financial aid and scholarships are available*  
-• Contact: {program_data.get('Financial Aid Email', 'rcbfinancialaid@gsu.edu')}  
-• Phone: {program_data.get('Phone Number', '404-413-2600')}  
-
-🔗 [View payment plans]({program_data.get('Program URL', 'https://robinson.gsu.edu')})
-"""
+    return "\n".join(response)
 
 # ===== CORE FUNCTIONS =====
 def select_program(program):
@@ -360,32 +334,71 @@ def handle_program_selection():
     st.title(f"📚 {program_type.capitalize()} Programs")
     st.subheader("Browse our academic offerings", divider='blue')
 
-    # Create a grid of consistently formatted program cards
+    # Updated CSS for consistent cards
+    st.markdown("""
+    <style>
+        .program-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            height: 160px; /* Fixed height */
+            display: flex;
+            flex-direction: column;
+        }
+        .program-title {
+            color: #003366;
+            margin: 0 0 12px 0;
+            font-size: 1.2rem;
+            font-weight: 600;
+            min-height: 60px;
+        }
+        .program-desc {
+            color: #555;
+            font-size: 0.95em;
+            line-height: 1.5;
+            flex-grow: 1;
+            margin-bottom: 15px;
+        }
+        .explore-btn {
+            margin-top: auto;
+            text-align: center;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # Create a grid of program cards
     cols = st.columns(3)
     col_index = 0
 
     for _, row in programs.iterrows():
         with cols[col_index]:
+            # Truncate description to 120 chars with complete words
+            desc = str(row.get("Overview", ""))
+            truncated_desc = (desc[:120] + "...") if len(desc) > 120 else desc
+
             st.markdown(f"""
             <div class="program-card">
                 <div class="program-title">{row["Program Name"]}</div>
-                <div class="program-desc">{row.get("Overview", "Explore this degree program")[:120]}...</div>
+                <div class="program-desc">{truncated_desc}</div>
+                <div class="explore-btn">
             </div>
             """, unsafe_allow_html=True)
-            
+
             if st.button(
-                "Explore Program →",
-                key=f"explore_{row['Program Name']}",
-                use_container_width=True
+                    "Explore Program →",
+                    key=f"explore_{row['Program Name']}",
+                    use_container_width=True
             ):
                 select_program(row['Program Name'])
-        
+
         col_index = (col_index + 1) % 3
-    
+
     if st.button("← Back to Program Type Selection", type="secondary"):
         st.session_state.app["stage"] = "select_program_type"
         st.rerun()
-
 def handle_chat_interface():
     program = st.session_state.app["selected_program"]
 
@@ -434,7 +447,7 @@ def main():
         "select_program": handle_program_selection,
         "chat_interface": handle_chat_interface
     }
-    
+
     current_stage = st.session_state.app["stage"]
     if current_stage in stages:
         stages[current_stage]()
