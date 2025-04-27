@@ -1,10 +1,10 @@
-# app.py - GSU PantherBot with University Info
 import streamlit as st
 import pandas as pd
 import requests
 import json
 import re
 import random
+import os  # Added this import
 from openai import OpenAI
 from pathlib import Path
 from datetime import datetime
@@ -17,8 +17,10 @@ LOGO_PATH = Path("assets/gsu_logo.png")
 UNIVERSITY_IMAGE_PATH = Path("assets/gsu_image.jpg")
 
 # ===== INITIALIZATION =====
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))  # Set it through environment variable
+# Initialize OpenAI client with environment variable
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 SERPER_API_KEY = os.getenv("SERPER_API_KEY")
+
 
 # ===== UI CONFIG =====
 st.set_page_config(
@@ -71,6 +73,9 @@ st.markdown("""
     .stButton>button:hover {
         opacity: 0.9;
     }
+    .sidebar-content {
+        padding: 20px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -86,7 +91,6 @@ if "app" not in st.session_state:
         "programs": None,
         "search_cache": {}
     }
-
 # ===== HELPER FUNCTIONS =====
 def is_greeting(prompt: str) -> bool:
     patterns = [
@@ -413,7 +417,11 @@ def handle_chat_interface():
             st.markdown(f"[🔗 Program Website]({st.session_state.app['current_program_data']['Program URL']})")
 
         if st.button("← Back to Programs"):
-            st.session_state.app["stage"] = "select_program_type"
+            # Clear chat history when going back
+            st.session_state.app["chat_history"] = []
+            st.session_state.app["selected_program"] = None
+            st.session_state.app["current_program_data"] = None
+            st.session_state.app["stage"] = "select_program"
             st.rerun()
 
     with right_col:
