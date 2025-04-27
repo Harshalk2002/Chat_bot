@@ -10,89 +10,69 @@ from pathlib import Path
 from datetime import datetime
 from streamlit.components.v1 import html
 
-def select_program(program):
-    st.session_state.app["selected_program"] = program
-    st.session_state.app["current_program_data"] = st.session_state.app["programs"][st.session_state.app["program_type"]].loc[
-        st.session_state.app["programs"][st.session_state.app["program_type"]]['Program Name'] == program
-    ].iloc[0].to_dict()
-    st.session_state.app["stage"] = "chat_interface"
-    st.rerun()
-
-# Add this to your main() function before the stage handlers:
-if 'select_program' in st.query_params:
-    select_program(st.query_params['select_program'])
-# ===== CONFIGURATION =====
+# ===== CONSTANTS =====
 DATA_DIR = Path("data")
 USER_DATA_PATH = DATA_DIR / "user_submissions.xlsx"
 LOGO_PATH = Path("assets/gsu_logo.png")
-UNIVERSITY_IMAGE_PATH = Path("assets/gsu_image.jpg")  # Added university image path
+UNIVERSITY_IMAGE_PATH = Path("assets/gsu_image.jpg")
 
-# Initialize APIs (replace with your actual keys)
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-SERPER_API_KEY = st.secrets["SERPER_API_KEY"]
+# ===== INITIALIZATION =====
+openai_api_key = st.secrets["OPENAI_API_KEY"]
+serper_api_key = st.secrets["SERPER_API_KEY"]
 
-# ===== UI CONFIGURATION =====
+# Initialize OpenAI client
+client = OpenAI(api_key=openai_api_key)
+
+# ===== UI CONFIG =====
 st.set_page_config(
     page_title="GSU PantherBot",
     page_icon="🎓",
     layout="wide"
 )
 
-# Modern styling
+# Modern styling with improved program cards
 st.markdown("""
 <style>
-    [data-testid="stChatMessage"] {
-        padding: 16px;
-        border-radius: 12px;
-        margin-bottom: 12px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-    [data-testid="stChatMessage"] [data-testid="user"] {
-        background-color: #003366;
-        color: white;
-        margin-left: auto;
-        max-width: 85%;
-    }
-    [data-testid="stChatMessage"] [data-testid="assistant"] {
-        background-color: #f8f9fa;
-        border: 1px solid #dee2e6;
-        max-width: 90%;
-    }
     .program-card {
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
-        padding: 16px;
-        margin-bottom: 16px;
-        background-color: white;
-        transition: all 0.2s ease;
-    }
-    .program-card:hover {
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        transform: translateY(-2px);
-    }
-    .program-title {
-        color: #003366;
-        margin-top: 0;
-        margin-bottom: 8px;
-    }
-    .stButton>button {
-        background-color: #003366;
-        color: white;
-        border-radius: 8px;
-        padding: 8px 16px;
-        width: 100%;
-    }
-    .university-card {
         border: 1px solid #e0e0e0;
-        border-radius: 10px;
-        padding: 20px;
-        background: #f9f9f9;
-        margin: 10px 0;
-    }
-    .compact-list {
+        border-radius: 12px;
+        padding: 18px;
+        margin-bottom: 20px;
+        background: white;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+        height: 100%;
         display: flex;
         flex-direction: column;
-        gap: 8px;
+    }
+    .program-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        transform: translateY(-4px);
+    }
+    .program-title {
+        color: #003366 !important;
+        margin-top: 0;
+        margin-bottom: 12px;
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+    .program-desc {
+        color: #555;
+        font-size: 0.92em;
+        margin-bottom: 16px;
+        line-height: 1.5;
+        flex-grow: 1;
+    }
+    .stButton>button {
+        background: linear-gradient(to right, #003366, #004080);
+        color: white;
+        border-radius: 20px;
+        border: none;
+        width: 100%;
+        font-weight: 500;
+    }
+    .stButton>button:hover {
+        opacity: 0.9;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -110,49 +90,7 @@ if "app" not in st.session_state:
         "search_cache": {}
     }
 
-# ===== DATA LOADING =====
-@st.cache_data
-def load_programs():
-    try:
-        undergrad = pd.read_excel(DATA_DIR / "GSU_Undergrad.xlsx").fillna("Not available")
-        grad = pd.read_excel(DATA_DIR / "GSU_graduate.xlsx").fillna("Not available")
-        
-        # Standardize column names
-        undergrad = undergrad.rename(columns={
-            "Financial Aid Email": "Contact Email",
-            "Program Advisor Email": "Contact Email"
-        })
-        
-        return {"undergrad": undergrad, "grad": grad}
-    except Exception as e:
-        st.error(f"❌ Failed to load program data: {str(e)}")
-        st.stop()
-
-# ===== CORE FUNCTIONS =====
-def google_search(query):
-    """Perform Google search via Serper API"""
-    if query in st.session_state.app["search_cache"]:
-        return st.session_state.app["search_cache"][query]
-    
-    url = "https://google.serper.dev/search"
-    headers = {
-        'X-API-KEY': SERPER_API_KEY,
-        'Content-Type': 'application/json'
-    }
-    params = {
-        "q": f"site:gsu.edu {query}",
-        "num": 3
-    }
-    
-    try:
-        response = requests.post(url, headers=headers, data=json.dumps(params))
-        results = response.json().get('organic', [])
-        st.session_state.app["search_cache"][query] = results
-        return results
-    except Exception as e:
-        st.error(f"🔍 Search error: {str(e)}")
-        return []
-
+# ===== HELPER FUNCTIONS =====
 def is_greeting(prompt: str) -> bool:
     patterns = [
         r"\b(hi|hello|hey|greetings|sup|what's up)\b",
@@ -175,7 +113,6 @@ def generate_university_response():
     if not UNIVERSITY_IMAGE_PATH.exists():
         return "⚠️ University image not found in assets folder"
     
-    # Create columns for image and text
     col1, col2 = st.columns([1, 2])
     
     with col1:
@@ -185,16 +122,13 @@ def generate_university_response():
         st.markdown("""
         <div class="university-card">
             <h3 style="color: #003366; margin-top: 0;">🏫 J. Mack Robinson College of Business</h3>
-            
             <p>The J. Mack Robinson College of Business at Georgia State University in Atlanta is a leading business school offering a wide range of undergraduate, graduate, and doctoral programs. Established in 1913, the college is accredited by AACSB International and is known for its innovative curriculum and strong industry connections.</p>
-            
             <h4 style="color: #003366;">Academic Programs</h4>
             <ul>
                 <li><strong>Undergraduate Degrees:</strong> B.B.A. in Accounting, Finance, Marketing, Management, CIS, and more</li>
                 <li><strong>Graduate Programs:</strong> M.S. in Finance, Information Systems, Health Administration, and customizable MBA</li>
                 <li><strong>Doctoral Programs:</strong> Ph.D. programs focusing on research excellence</li>
             </ul>
-            
             <h4 style="color: #003366;">Key Features</h4>
             <ul>
                 <li>"Robinson Anywhere" platform for global synchronous learning</li>
@@ -202,7 +136,6 @@ def generate_university_response():
                 <li>Ranked programs (e.g., #4 Risk Management, #10 MIS)</li>
                 <li>Prime downtown Atlanta location near Fortune 500 companies</li>
             </ul>
-            
             <a href="https://robinson.gsu.edu" style="
                 display: inline-block;
                 background: #003366;
@@ -215,72 +148,136 @@ def generate_university_response():
         </div>
         """, unsafe_allow_html=True)
     
-    return ""  # Empty string since we're rendering directly
+    return ""
+
+import pandas as pd
+
+
+def clean_number(value):
+    """Helper function to clean and format numbers consistently"""
+    if pd.isna(value) or str(value) == "Not available":
+        return "Not available"
+
+    # Convert to string and normalize
+    str_value = str(value)
+
+    # Remove all whitespace, dollar signs, and normalize dashes
+    cleaned = (str_value.replace(" ", "")
+               .replace("$", "")
+               .replace(",", "")
+               .replace("–", "-")  # en-dash to hyphen
+               .replace("—", "-")) # em-dash to hyphen
+
+    # Handle range values
+    if "-" in cleaned:
+        parts = cleaned.split("-")
+        if len(parts) == 2:
+            try:
+                # Format with commas and non-breaking spaces
+                return f"${int(parts[0]):,}–${int(parts[1]):,}"
+            except ValueError:
+                return f"${parts[0]}–{parts[1]}"  # Fallback
+
+    # Handle single values
+    try:
+        return f"${int(cleaned):,}"
+    except ValueError:
+        return str_value  # Return original if conversion fails
 
 def generate_tuition_response(program_data: dict) -> str:
-    """Humanized tuition cost explanation"""
-    def format_cost(value):
-        if isinstance(value, (int, float)):
-            return f"${value:,.2f}"
-        if isinstance(value, str) and "-" in value:
-            low, high = value.split("-")
-            return f"${low.strip()}-${high.strip()}"
-        return str(value)
-    
-    in_state = program_data.get("In-State Tuition Estimate", "Not available")
-    out_state = program_data.get("Out-of-State Tuition Estimate", "Not available")
-    financial_aid = program_data.get("Financial Aid Email", "rcbfinancialaid@gsu.edu")
-    
-    response = [
-        f"📚 **Tuition Information for {program_data['Program Name']}**",
-        "",
-        f"• **Georgia Residents**: {format_cost(in_state)} per year",
-        f"• **Out-of-State Students**: {format_cost(out_state)} per year",
-        "",
-        "💡 *Financial aid and scholarships are available*",
-        f"• Contact: {financial_aid}",
-        f"• Phone: {program_data.get('Phone Number', '404-413-2600')}",
-        "",
-        f"🔗 [View payment plans and detailed costs]({program_data.get('Program URL', 'https://robinson.gsu.edu')})"
-    ]
-    
-    return "\n".join(response)
+    """Generate perfectly formatted tuition information"""
+    in_state = clean_number(program_data.get("In-State Tuition Estimate", "Not available"))
+    out_state = clean_number(program_data.get("Out-of-State Tuition Estimate", "Not available"))
+
+    return f"""
+📚 **Tuition Information for {program_data['Program Name']}**
+
+• **Georgia Residents**: {in_state} per year  
+• **Out-of-State Students**: {out_state} per year  
+
+💡 *Financial aid and scholarships are available*  
+• Contact: {program_data.get('Financial Aid Email', 'rcbfinancialaid@gsu.edu')}  
+• Phone: {program_data.get('Phone Number', '404-413-2600')}  
+
+🔗 [View payment plans]({program_data.get('Program URL', 'https://robinson.gsu.edu')})
+"""
+
+# ===== CORE FUNCTIONS =====
+def select_program(program):
+    st.session_state.app["selected_program"] = program
+    st.session_state.app["current_program_data"] = st.session_state.app["programs"][st.session_state.app["program_type"]].loc[
+        st.session_state.app["programs"][st.session_state.app["program_type"]]['Program Name'] == program
+    ].iloc[0].to_dict()
+    st.session_state.app["stage"] = "chat_interface"
+    st.rerun()
+
+@st.cache_data
+def load_programs():
+    try:
+        undergrad = pd.read_excel(DATA_DIR / "GSU_Undergrad.xlsx").fillna("Not available")
+        grad = pd.read_excel(DATA_DIR / "GSU_graduate.xlsx").fillna("Not available")
+
+        undergrad = undergrad.rename(columns={
+            "Financial Aid Email": "Contact Email",
+            "Program Advisor Email": "Contact Email"
+        })
+
+        return {"undergrad": undergrad, "grad": grad}
+    except Exception as e:
+        st.error(f"❌ Failed to load program data: {str(e)}")
+        st.stop()
+
+def google_search(query):
+    if query in st.session_state.app["search_cache"]:
+        return st.session_state.app["search_cache"][query]
+
+    url = "https://google.serper.dev/search"
+    headers = {
+        'X-API-KEY': SERPER_API_KEY,
+        'Content-Type': 'application/json'
+    }
+    params = {
+        "q": f"site:gsu.edu {query}",
+        "num": 3
+    }
+
+    try:
+        response = requests.post(url, headers=headers, data=json.dumps(params))
+        results = response.json().get('organic', [])
+        st.session_state.app["search_cache"][query] = results
+        return results
+    except Exception as e:
+        st.error(f"🔍 Search error: {str(e)}")
+        return []
 
 def generate_response(prompt: str) -> str:
-    """Generate context-aware responses"""
-    # 1. Handle university info queries
     if is_about_university_query(prompt):
-        generate_university_response()  # This renders directly
-        return ""  # Return empty string since we rendered components directly
+        generate_university_response()
+        return ""
 
     program_data = st.session_state.app["current_program_data"]
 
-    # 2. Handle greetings
     if is_greeting(prompt):
         return random.choice([
             "🎓 Hello! How can I assist you with GSU programs today?",
             "👋 Hi there! Ready to explore degree programs?"
         ])
 
-    # 3. Handle thanks
     if is_thanks(prompt):
         return random.choice([
             "🙏 You're welcome! Let me know if you have other questions.",
             "😊 Happy to help! What else can I assist with?"
         ])
 
-    # 4. Special handling for tuition queries
     if any(word in prompt.lower() for word in ["tuition", "fee", "cost", "price"]):
         return generate_tuition_response(program_data)
 
-    # 5. Handle faculty queries
     if is_faculty_query(prompt):
         faculty = program_data.get("Faculty", "Not available")
         if faculty != "Not available":
             return f"👨‍🏫 **Faculty Members**:\n\n" + "\n".join(f"- {name.strip()}" for name in faculty.split(","))
         return f"⚠️ Faculty information not found. Check the [program website]({program_data.get('Program URL', '#')})"
 
-    # 6. Default AI response
     search_results = google_search(f"{program_data['Program Name']} {prompt}")
     web_context = "\n".join(f"{res.get('title')}: {res.get('snippet')}" for res in search_results)
 
@@ -304,7 +301,7 @@ def generate_response(prompt: str) -> str:
 def handle_name():
     st.title("🎓 Welcome to GSU PantherBot!")
     name = st.text_input("What's your name?")
-    
+
     if st.button("Continue"):
         if name.strip():
             st.session_state.app["user_data"]["name"] = name.strip()
@@ -317,7 +314,7 @@ def handle_email():
     st.title("📧 Contact Information")
     st.write(f"Hello {st.session_state.app['user_data']['name']}! Please provide your email address.")
     email = st.text_input("Email Address")
-    
+
     if st.button("Continue"):
         if re.match(r"[^@]+@[^@]+\.[^@]+", email):
             st.session_state.app["user_data"]["email"] = email
@@ -330,7 +327,7 @@ def handle_phone():
     st.title("📞 Contact Information")
     st.write("Almost done! Please provide your phone number (optional).")
     phone = st.text_input("Phone Number (optional)")
-    
+
     if st.button("Continue"):
         st.session_state.app["user_data"]["phone"] = phone if phone else "Not provided"
         st.session_state.app["stage"] = "select_program_type"
@@ -339,103 +336,49 @@ def handle_phone():
 def handle_program_type():
     st.title("🎓 Program Selection")
     st.write("Are you interested in undergraduate or graduate programs?")
-    
+
     col1, col2 = st.columns(2)
     with col1:
         if st.button("Undergraduate Programs"):
             st.session_state.app["program_type"] = "undergrad"
             st.session_state.app["stage"] = "select_program"
             st.rerun()
-    
+
     with col2:
         if st.button("Graduate Programs"):
             st.session_state.app["program_type"] = "grad"
             st.session_state.app["stage"] = "select_program"
             st.rerun()
 
-    
-   
 def handle_program_selection():
     if st.session_state.app["programs"] is None:
         st.session_state.app["programs"] = load_programs()
-    
+
     program_type = st.session_state.app["program_type"]
     programs = st.session_state.app["programs"][program_type]
-    
+
     st.title(f"📚 {program_type.capitalize()} Programs")
     st.subheader("Browse our academic offerings", divider='blue')
-    
-    # Custom CSS for styling
-    st.markdown("""
-    <style>
-        .program-card {
-            border: 1px solid #e0e0e0;
-            border-radius: 12px;
-            padding: 18px;
-            margin-bottom: 20px;
-            background: white;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            transition: all 0.3s ease;
-        }
-        .program-card:hover {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
-            transform: translateY(-4px);
-        }
-        .program-title {
-            color: #003366 !important;
-            margin-top: 0;
-            margin-bottom: 12px;
-            font-size: 1.1rem;
-            font-weight: 600;
-        }
-        .program-desc {
-            color: #555;
-            font-size: 0.92em;
-            margin-bottom: 16px;
-            line-height: 1.5;
-        }
-        .explore-btn-container {
-            margin-top: auto;
-        }
-        div[data-testid="stButton"] > button {
-            background: linear-gradient(to right, #003366, #004080) !important;
-            border: none !important;
-            border-radius: 20px !important;
-            width: 100% !important;
-            color: white !important;
-            font-weight: 500;
-            transition: opacity 0.2s ease !important;
-        }
-        div[data-testid="stButton"] > button:hover {
-            opacity: 0.85 !important;
-        }
-    </style>
-    """, unsafe_allow_html=True)
-    
-    # Create a grid of program cards
+
+    # Create a grid of consistently formatted program cards
     cols = st.columns(3)
     col_index = 0
-    
+
     for _, row in programs.iterrows():
         with cols[col_index]:
-            # Create the card container
             st.markdown(f"""
             <div class="program-card">
                 <div class="program-title">{row["Program Name"]}</div>
                 <div class="program-desc">{row.get("Overview", "Explore this degree program")[:120]}...</div>
-                <div class="explore-btn-container">
             </div>
             """, unsafe_allow_html=True)
             
-            # Add the explore button inside the card
             if st.button(
-                "Explore Program",
+                "Explore Program →",
                 key=f"explore_{row['Program Name']}",
+                use_container_width=True
             ):
-                st.session_state.app["selected_program"] = row['Program Name']
-                st.session_state.app["current_program_data"] = row.to_dict()
-                st.session_state.app["stage"] = "chat_interface"
-                st.rerun()
+                select_program(row['Program Name'])
         
         col_index = (col_index + 1) % 3
     
