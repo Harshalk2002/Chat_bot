@@ -62,7 +62,10 @@ You can try PantherBot live here:
    ```
 5. Open your browser and interact with PantherBot!
 
----
+
+--<img width="1020" alt="Screenshot 2025-05-01 at 5 16 34 PM" src="https://github.com/user-attachments/assets/33871985-dd29-414e-a467-d4c3402bc454" />
+-<img width="1017" alt="Screenshot 2025-05-01 at 5 16 41 PM" src="https://github.com/user-attachments/assets/d8c9d8e5-f03a-4b33-a1bb-9a57adf36bee" />
+<img width="1016" alt="Screenshot 2025-05-01 at 5 16 49 PM" src="https://github.com/user-attachments/assets/f903d9b4-304e-4f6a-b144-c25d9aac41ca" />
 
 ## 🧑‍🤝‍🧑 Team Roles & Responsibilities
 
