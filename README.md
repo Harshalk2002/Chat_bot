@@ -49,7 +49,7 @@ You can try PantherBot live here:
 1. Clone this repository to your local machine:
    ```bash
    git clone https://github.com/Harshalk2002/GENAI_003_PROJECT_02.git
-   cd GENAI_003_PROJECT_02
+   cd Chat_bot
    ```
 2. Install all required Python packages:
    ```bash
