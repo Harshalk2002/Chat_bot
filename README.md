@@ -1,7 +1,7 @@
 # PantherBot - GSU Smart Program Assistant 🎓🤖
 
 ## Project Overview
-PantherBot is an AI-powered chatbot developed to assist students in exploring undergraduate and graduate programs at Georgia State University (GSU).  
+PantherBot is an AI-powered chatbot I developed to assist students in exploring undergraduate and graduate programs at Georgia State University (GSU).  
 By integrating OpenAI's LLM capabilities with real-time data from GSU's program listings, PantherBot offers quick, intelligent, and contextually relevant responses to help students find the right program based on their interests. The chatbot leverages multi-turn memory to maintain the flow of conversation and enhance the user experience.
 
 This project was created as part of the MSA 8700 course, focusing on designing, developing, and deploying a practical AI business solution using large language models (LLMs) in real-world scenarios.
@@ -61,30 +61,27 @@ You can try PantherBot live here:
    streamlit run Panther_bot.py
    ```
 5. Open your browser and interact with PantherBot!
-6. 
+
 <img width="592" alt="Screenshot 2025-05-01 at 5 18 23 PM" src="https://github.com/user-attachments/assets/0ee9b7f1-4cfa-4d43-9483-9fdbd52827de" />
 <img width="872" alt="Screenshot 2025-05-01 at 5 18 32 PM" src="https://github.com/user-attachments/assets/43ce2a04-c744-4185-838a-2773c30de9e8" />
 <img width="895" alt="Screenshot 2025-05-01 at 5 18 45 PM" src="https://github.com/user-attachments/assets/c2445e03-6fc3-4576-9890-fb8d8d5de67b" />
 
+---
 
+## Role & Responsibilities
 
-## 🧑‍🤝‍🧑 Team Roles & Responsibilities
+As the sole developer and project owner, I handled:
 
-| Team Member | Role | Responsibilities |
-|:------------|:-----|:------------------|
-| **Harshal Kamble** | Project Lead / LLM Engineer | Designed and developed the chatbot logic using OpenAI's GPT-4 Turbo model, integrated Ollama API for future offline capabilities, managed backend conversation memory, configured interaction logging, oversaw GitHub repo and documentation. |
-| **Vishnu Sankhyan** | Full Stack Developer | Designed and built the user-friendly Streamlit frontend, developed program selection and chat interfaces, ensured cross-device responsiveness, deployed the app on Streamlit Community Cloud, and managed continuous integration pipelines. |
-| **Abhay Prabhakar** | UX / Feedback & Testing Lead | Designed chatbot conversation flows, conducted extensive user testing sessions, analyzed user feedback, identified interaction improvement areas, and proposed UX optimizations for enhanced engagement and usability. |
-
-The team held weekly meetings, documented development milestones collaboratively, and ensured transparent communication to stay aligned with project goals.
+- **Project Design**: Identified the business problem, designed the solution architecture, and outlined the technical scope.
+- **LLM Engineering**: Built and tuned the chatbot logic using GPT-4 Turbo with multi-turn memory and fallback strategies.
+- **Frontend Development**: Designed and built the user interface using Streamlit, ensuring responsiveness and user-centric navigation.
+- **Integration & Deployment**: Managed API integrations, session state handling, local and remote hosting configurations, and deployment on Streamlit Community Cloud.
+- **Testing & Optimization**: Conducted extensive user testing, improved UX based on feedback, and optimized system performance and stability.
 
 ---
 
 ## ⚙️ Challenges Faced
-- **Performance Optimization**: Integrating multi-turn memory without sacrificing real-time response speed was critical. Various optimizations were made to balance conversational context depth and system resource usage.
-- **Session State Management**: Designing a dynamic yet stable session management system that tracks user inputs, selected programs, and feedback across multiple conversation stages.
-- **Local LLM Integration**: Preparing the application architecture to work not only with OpenAI’s hosted models but also supporting future offline deployments with Ollama APIs, ensuring greater accessibility and data privacy.
-- **Deployment Scalability**: Managing a smooth deployment on Streamlit Community Cloud while ensuring the app remains responsive and fault-tolerant under multiple concurrent users.
-
----
-
+- **Performance Optimization**: Balancing multi-turn memory with fast response times required careful prompt tuning and caching strategies.
+- **Session State Management**: Building a stable yet dynamic session flow that tracks user progress across multi-step conversations.
+- **Local LLM Integration**: Architected the backend to support future offline deployment using Ollama APIs for privacy-focused use cases.
+- **Scalability**: Ensured the application could handle multiple users simultaneously with minimal lag or crashes.
